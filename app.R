@@ -122,39 +122,39 @@ ui <- fluidPage(
                                                     click = "colorPickerClick",
                                                     hover = "colorPickerHover"),
                                          plotOutput(outputId = "colorPickerSimilarColors"))))),
-             tabPanel("Lego-ize",
-                      sidebarLayout(
-                        sidebarPanel(width = 3,
-                                     # fileInput(inputId = "legoizePath",
-                                     #           label = "Choose an Image File",
-                                     #           multiple = FALSE,
-                                     #           accept = "image/*"),
-                                     # fileInput(inputId = "startImage",
-                                     #           label = "Choose an Image File",
-                                     #           multiple = FALSE,
-                                     #           accept = "image/*"),
-                                     uiOutput("fileInfo"),
-                                     checkboxInput(inputId = "resizeIm",label = "Resize the image first (to reduce computational time)",value = FALSE),
-                                     conditionalPanel(condition = 'input.resizeIm == 1',
-                                                      numericInput(inputId = "imWidth",label = "Image Width (pixels)",value = 1000),
-                                                      checkboxInput(inputId = "keepRatio",label = "Keep aspect ratio",value = TRUE),
-                                                      conditionalPanel(condition = "input.keepRatio == 0",numericInput(inputId = "imHeight",label = "Image Height (pixels)",value = NA))),
-                                     numericInput(inputId = "blockSize",label = "Block Size (e.g., 3 by 3 pixels)",value = 3,step = 1,min = 2,width = "200px"),
-                                     # sliderInput(inputId = "blockWidth",label = "Block Widths (pixels)",min = 2,max = 10,value = 3,step = 1,round = TRUE,ticks = FALSE),
-                                     # sliderInput(inputId = "blockHeight",label = "Block Heights (pixels)",min = 2,max = 10,value = 3,step = 1,round = TRUE,ticks = FALSE),
-                                     shiny::actionButton(inputId = "legoize",label = "Lego-ize!",icon = icon("cubes")),
-                                     shiny::downloadButton("downloadLegoImage",label = "Download Lego-ized Image")
-                        ),
-
-                        # Show a plot of the generated distribution
-                        mainPanel(width = 9,
-                                  fluidRow(splitLayout(cellWidths = c("50%","50%"),
-                                                       plotOutput("originalImage"),
-                                                       plotOutput("processedImage"))
-                                  )
-
-                        )
-                      ))
+             # tabPanel("Lego-ize",
+             #          sidebarLayout(
+             #            sidebarPanel(width = 3,
+             #                         # fileInput(inputId = "legoizePath",
+             #                         #           label = "Choose an Image File",
+             #                         #           multiple = FALSE,
+             #                         #           accept = "image/*"),
+             #                         # fileInput(inputId = "startImage",
+             #                         #           label = "Choose an Image File",
+             #                         #           multiple = FALSE,
+             #                         #           accept = "image/*"),
+             #                         uiOutput("fileInfo"),
+             #                         checkboxInput(inputId = "resizeIm",label = "Resize the image first (to reduce computational time)",value = FALSE),
+             #                         conditionalPanel(condition = 'input.resizeIm == 1',
+             #                                          numericInput(inputId = "imWidth",label = "Image Width (pixels)",value = 1000),
+             #                                          checkboxInput(inputId = "keepRatio",label = "Keep aspect ratio",value = TRUE),
+             #                                          conditionalPanel(condition = "input.keepRatio == 0",numericInput(inputId = "imHeight",label = "Image Height (pixels)",value = NA))),
+             #                         numericInput(inputId = "blockSize",label = "Block Size (e.g., 3 by 3 pixels)",value = 3,step = 1,min = 2,width = "200px"),
+             #                         # sliderInput(inputId = "blockWidth",label = "Block Widths (pixels)",min = 2,max = 10,value = 3,step = 1,round = TRUE,ticks = FALSE),
+             #                         # sliderInput(inputId = "blockHeight",label = "Block Heights (pixels)",min = 2,max = 10,value = 3,step = 1,round = TRUE,ticks = FALSE),
+             #                         shiny::actionButton(inputId = "legoize",label = "Lego-ize!",icon = icon("cubes")),
+             #                         shiny::downloadButton("downloadLegoImage",label = "Download Lego-ized Image")
+             #            ),
+             #
+             #            # Show a plot of the generated distribution
+             #            mainPanel(width = 9,
+             #                      fluidRow(splitLayout(cellWidths = c("50%","50%"),
+             #                                           plotOutput("originalImage"),
+             #                                           plotOutput("processedImage"))
+             #                      )
+             #
+             #            )
+             #          ))
   ))
 
 # Define server logic required to draw a histogram
@@ -516,166 +516,166 @@ server <- function(session,input, output) {
 
   ######################################## Lego-ize panel
 
-  output$fileInfo <- renderUI({
-
-    req(input$paletteImagePath)
-
-    fileName <- input$paletteImagePath
-
-    ret <- magick::image_read(fileName$datapath) %>%
-      imager::magick2cimg()
-
-    return(paste0("The image is ",nrow(ret)," by ",ncol(ret)," pixels.\n"))
-
-  })
-
-
-  regImage <- shiny::reactive({
-
-    req(input$paletteImagePath)
-
-    fileName <- input$paletteImagePath
-
-    ret <- magick::image_read(fileName$datapath) %>%
-      imager::magick2cimg() %>%
-      imager::mirror(axis = "x")
-
-    if(input$resizeIm){
-
-      newRow <- input$imWidth
-
-      if(!input$keepRatio){
-
-        newCol <- input$imHeight
-
-      }
-      else{
-        newCol <- newRow*ncol(ret)/nrow(ret)
-      }
-
-      ret <- imager::resize(ret,
-                            size_y = newCol,
-                            size_x = newRow)
-
-    }
-
-    return(ret)
-
-  })
-
-  observeEvent(regImage(),{
-    output$fileInfo <- renderUI({
-
-      ret <- isolate(regImage())
-
-      return(paste0("The image is ",nrow(ret)," by ",ncol(ret)," pixels.\n"))
-
-    })
-  })
-
-  output$originalImage <- renderPlot({
-
-    req(input$paletteImagePath)
-
-    return(paletteImage$plt)
-
-  })
-
-  observeEvent(input$paletteImagePath,{
-
-    output$processedImage <- NULL
-
-  })
-
-  observeEvent(input$legoize,{
-
-    regImg <- isolate(regImage())
-
-    output$processedImage <- renderPlot({
-
-      regImageList <- regImg %>%
-        imager::grayscale() %>%
-        imager::imsplit(axis = "x",nb = nrow(.)/input$blockSize) %>%
-        # imager::imsplit(axis = "x",nb = nrow(.)/input$blockHeight) %>%
-        as.list() %>%
-        map(~ {
-
-          imager::imsplit(.,axis = "y",nb = ncol(.)/input$blockSize)
-          # imager::imsplit(.,axis = "y",nb = ncol(.)/input$blockWidth)
-
-        })
-
-      withProgress(message = "Lego-izing",
-                   value = 0,
-                   expr = {
-
-                     plt <- data.frame(rowStart = regImageList%>%
-                                         map(function(dat){
-
-                                           dat %>%
-                                             names() %>%
-                                             str_extract_all("[0-9]{1,}") %>%
-                                             map_int(~ {
-
-                                               as.integer(.[1])
-
-                                             })
-
-                                         }) %>%
-                                         unlist(),
-                                       rowEnd = regImageList %>%
-                                         map(function(dat){
-
-                                           dat %>%
-                                             names() %>%
-                                             str_extract_all("[0-9]{1,}") %>%
-                                             map_int(~ {
-
-                                               as.integer(.[2])
-
-                                             })
-
-                                         }) %>%
-                                         unlist()) %>%
-                       rownames_to_column() %>%
-                       mutate(colStart = map_int(rowname,~ as.integer(str_extract_all(.,"[0-9]{1,}")[[1]][1])),
-                              colEnd = colStart + (unique(colStart)[2] - unique(colStart)[1]),
-                              colEnd = ifelse(colStart == max(colStart),nrow(regImg),colEnd),
-                              rowEnd = rowEnd + 1) %>%
-                       mutate(regImageSplit = flatten(regImageList),
-                              regImageAve = map_dbl(regImageSplit,~ {mean(as.matrix(.))}),
-                              regImageAve = floor(regImageAve*10)/10) %>%
-                       ggplot(aes(xmin = colStart,xmax = colEnd,ymin = rowStart,ymax = rowEnd,fill = regImageAve,colour = regImageAve)) +
-                       geom_rect() +
-                       scale_fill_gradientn(colours = c("gray0","gray10","gray20","gray30","gray40",
-                                                        "gray50",
-                                                        "gray60","gray70","#aec6cf","gray90","gray100"),
-                                            values = seq(0,1,by = .1),aesthetics = c("fill","colour")) +
-                       coord_fixed(expand = FALSE) +
-                       scale_y_reverse() +
-                       theme_void() +
-                       theme(legend.position = "none") +
-                       scale_x_reverse()
-
-                     incProgress(amount = 1)
-
-                     processedIm <<- plt
-
-                     return(plt)
-
-                   })
-
-    })
-
-  })
-
-  output$downloadLegoImage <- downloadHandler(filename = function(){
-    paste0("legoizedImage-",Sys.Date(),".png",sep = "")
-  },
-  content = function(file){
-    ggplot2::ggsave(processedIm,filename = file)
-    knitr::plot_crop(file,quiet = TRUE)
-  })
+  # output$fileInfo <- renderUI({
+  #
+  #   req(input$paletteImagePath)
+  #
+  #   fileName <- input$paletteImagePath
+  #
+  #   ret <- magick::image_read(fileName$datapath) %>%
+  #     imager::magick2cimg()
+  #
+  #   return(paste0("The image is ",nrow(ret)," by ",ncol(ret)," pixels.\n"))
+  #
+  # })
+  #
+  #
+  # regImage <- shiny::reactive({
+  #
+  #   req(input$paletteImagePath)
+  #
+  #   fileName <- input$paletteImagePath
+  #
+  #   ret <- magick::image_read(fileName$datapath) %>%
+  #     imager::magick2cimg() %>%
+  #     imager::mirror(axis = "x")
+  #
+  #   if(input$resizeIm){
+  #
+  #     newRow <- input$imWidth
+  #
+  #     if(!input$keepRatio){
+  #
+  #       newCol <- input$imHeight
+  #
+  #     }
+  #     else{
+  #       newCol <- newRow*ncol(ret)/nrow(ret)
+  #     }
+  #
+  #     ret <- imager::resize(ret,
+  #                           size_y = newCol,
+  #                           size_x = newRow)
+  #
+  #   }
+  #
+  #   return(ret)
+  #
+  # })
+  #
+  # observeEvent(regImage(),{
+  #   output$fileInfo <- renderUI({
+  #
+  #     ret <- isolate(regImage())
+  #
+  #     return(paste0("The image is ",nrow(ret)," by ",ncol(ret)," pixels.\n"))
+  #
+  #   })
+  # })
+  #
+  # output$originalImage <- renderPlot({
+  #
+  #   req(input$paletteImagePath)
+  #
+  #   return(paletteImage$plt)
+  #
+  # })
+  #
+  # observeEvent(input$paletteImagePath,{
+  #
+  #   output$processedImage <- NULL
+  #
+  # })
+  #
+  # observeEvent(input$legoize,{
+  #
+  #   regImg <- isolate(regImage())
+  #
+  #   output$processedImage <- renderPlot({
+  #
+  #     regImageList <- regImg %>%
+  #       imager::grayscale() %>%
+  #       imager::imsplit(axis = "x",nb = nrow(.)/input$blockSize) %>%
+  #       # imager::imsplit(axis = "x",nb = nrow(.)/input$blockHeight) %>%
+  #       as.list() %>%
+  #       map(~ {
+  #
+  #         imager::imsplit(.,axis = "y",nb = ncol(.)/input$blockSize)
+  #         # imager::imsplit(.,axis = "y",nb = ncol(.)/input$blockWidth)
+  #
+  #       })
+  #
+  #     withProgress(message = "Lego-izing",
+  #                  value = 0,
+  #                  expr = {
+  #
+  #                    plt <- data.frame(rowStart = regImageList%>%
+  #                                        map(function(dat){
+  #
+  #                                          dat %>%
+  #                                            names() %>%
+  #                                            str_extract_all("[0-9]{1,}") %>%
+  #                                            map_int(~ {
+  #
+  #                                              as.integer(.[1])
+  #
+  #                                            })
+  #
+  #                                        }) %>%
+  #                                        unlist(),
+  #                                      rowEnd = regImageList %>%
+  #                                        map(function(dat){
+  #
+  #                                          dat %>%
+  #                                            names() %>%
+  #                                            str_extract_all("[0-9]{1,}") %>%
+  #                                            map_int(~ {
+  #
+  #                                              as.integer(.[2])
+  #
+  #                                            })
+  #
+  #                                        }) %>%
+  #                                        unlist()) %>%
+  #                      rownames_to_column() %>%
+  #                      mutate(colStart = map_int(rowname,~ as.integer(str_extract_all(.,"[0-9]{1,}")[[1]][1])),
+  #                             colEnd = colStart + (unique(colStart)[2] - unique(colStart)[1]),
+  #                             colEnd = ifelse(colStart == max(colStart),nrow(regImg),colEnd),
+  #                             rowEnd = rowEnd + 1) %>%
+  #                      mutate(regImageSplit = flatten(regImageList),
+  #                             regImageAve = map_dbl(regImageSplit,~ {mean(as.matrix(.))}),
+  #                             regImageAve = floor(regImageAve*10)/10) %>%
+  #                      ggplot(aes(xmin = colStart,xmax = colEnd,ymin = rowStart,ymax = rowEnd,fill = regImageAve,colour = regImageAve)) +
+  #                      geom_rect() +
+  #                      scale_fill_gradientn(colours = c("gray0","gray10","gray20","gray30","gray40",
+  #                                                       "gray50",
+  #                                                       "gray60","gray70","#aec6cf","gray90","gray100"),
+  #                                           values = seq(0,1,by = .1),aesthetics = c("fill","colour")) +
+  #                      coord_fixed(expand = FALSE) +
+  #                      scale_y_reverse() +
+  #                      theme_void() +
+  #                      theme(legend.position = "none") +
+  #                      scale_x_reverse()
+  #
+  #                    incProgress(amount = 1)
+  #
+  #                    processedIm <<- plt
+  #
+  #                    return(plt)
+  #
+  #                  })
+  #
+  #   })
+  #
+  # })
+  #
+  # output$downloadLegoImage <- downloadHandler(filename = function(){
+  #   paste0("legoizedImage-",Sys.Date(),".png",sep = "")
+  # },
+  # content = function(file){
+  #   ggplot2::ggsave(processedIm,filename = file)
+  #   knitr::plot_crop(file,quiet = TRUE)
+  # })
 }
 
 # Run the application
