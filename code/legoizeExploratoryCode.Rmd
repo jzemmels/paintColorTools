@@ -1,0 +1,104 @@
+---
+title: "R Notebook"
+---
+
+```{r setup}
+library(imager)
+library(tidyverse)
+```
+
+```{r}
+data("boats")
+
+# boats <- magick::image_read("~/../Downloads/karamo_rgb.jpg") %>%
+  # imager::magick2cimg() %>%
+  # imager::resize(size_x = nrow(.)/3,
+  #                size_y = ncol(.)/3)
+
+# boats <- magick::image_read("~/../Downloads/headshot.jpg") %>%
+#   imager::magick2cimg()
+
+boatsGray <- imager::grayscale(boats)
+
+boatsList <- boatsGray %>%
+  imager::imsplit(axis = "x",nb = nrow(.)/3) %>%
+  as.list() %>%
+  map(~ {
+    
+    imager::imsplit(.,axis = "y",nb = ncol(.)/3)
+    
+  })
+
+boatsDF <- data.frame(rowStart = boatsList %>%
+  map(function(dat){
+    
+    dat %>%
+      names() %>%
+      str_extract_all("[0-9]{1,}") %>%
+      map_int(~ {
+           
+           as.integer(.[1])
+           
+         })
+    
+  }) %>%
+    unlist(),
+  rowEnd = boatsList %>%
+  map(function(dat){
+    
+    dat %>%
+      names() %>%
+      str_extract_all("[0-9]{1,}") %>%
+      map_int(~ {
+           
+           as.integer(.[2])
+           
+         })
+    
+  }) %>%
+    unlist()) %>%
+  rownames_to_column() %>%
+  mutate(colStart = map_int(rowname,~ as.integer(str_extract_all(.,"[0-9]{1,}")[[1]][1])),
+         colEnd = colStart + (unique(colStart)[2] - unique(colStart)[1]),
+         colEnd = ifelse(colStart == max(colStart),nrow(boats),colEnd),
+         rowEnd = rowEnd + 1)
+
+# plt <- 
+  
+boatsDF %>%
+  mutate(boatsSplit = flatten(boatsList),
+         boatsAve = map_dbl(boatsSplit,~ {mean(as.matrix(.))}),
+         boatsAve = floor(boatsAve*10)/10) %>%
+  ggplot(aes(xmin = colStart,xmax = colEnd,ymin = rowStart,ymax = rowEnd,fill = boatsAve)) +
+  geom_rect() +
+  scale_fill_gradientn(colours = c("gray0","gray10","gray20","gray30","gray40",
+                               "gray50",
+                               "gray60","gray70","#aec6cf","gray90","gray100"),
+                       values = seq(0,1,by = .1)) +
+  coord_fixed(expand = FALSE) +
+  scale_y_reverse() +
+  theme_void() +
+  theme(legend.position = "none")
+  
+boatsDF %>%
+  mutate(boatsSplit = flatten(boatsList),
+         boatsAve = map_dbl(boatsSplit,~ {mean(as.matrix(.))}),
+         x = (colStart + colEnd)/2,
+         y = (rowStart + rowEnd)/2) %>%
+  ggplot(aes(x = x,y = y,z = boatsAve)) +
+  geom_contour_filled() +
+  coord_fixed(expand = FALSE) +
+  scale_y_reverse() +
+  theme_void() +
+  scale_fill_manual(values = c("gray0","gray10","gray20","gray30","gray40",
+                               "gray50",
+                               "gray60","#aec6cf","gray80","gray90")) +
+  theme(legend.position = "none")
+  # scale_fill_grey()0
+
+# plt
+
+# ggsave(plt,filename = "~/../Downloads/boatsLego.png")
+
+plot(boatsGray)
+```

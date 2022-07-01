@@ -1,0 +1,114 @@
+---
+title: "R Notebook"
+---
+
+```{r setup}
+library(tidyverse)
+```
+
+
+```{r}
+paintData <- map_dfr(list.files("../data/"),
+                     function(fileName){
+                       
+                       brandName <- str_remove(fileName,"\\.csv")
+                       
+                       ret <- read_delim(paste0("../data/",fileName),delim = ";") %>%
+                         mutate(brand = brandName)
+                       
+                       if("Color Number" %in% names(ret)){
+                         ret <- select(ret,-`Color Number`)
+                       }
+                       
+                     }) %>%
+  as.tibble() %>%
+  mutate(rgb = RGB %>%
+           str_remove("rgb\\(") %>%
+           str_remove("\\)")) %>%
+  tidyr::separate(col = "rgb",into = c("r","g","b"),sep = ", ",remove = FALSE) %>%
+  mutate(r = as.numeric(r),
+         g = as.numeric(g),
+         b = as.numeric(b),
+         colorID = paste0(brand,"-",str_remove(`Color Name`," "),"-",str_remove(Hex,'#'))) %>%
+  mutate(imgPath = paste0("<img src='",colorID,".png' height = '100'></img>")) %>%
+  distinct()
+
+write_csv(paintData,file = "../data/paintData.csv")
+```
+
+save pngs of each colorID to the www folder
+
+```{r}
+future:::ClusterRegistry("stop")
+
+future::plan(future::multisession(workers = future::availableCores() - 6))
+
+paintData %>%
+  select(c(colorID,Hex)) %>%
+  furrr::future_pwalk(~ {
+    
+    if(!file.exists(paste0("../images/paintImages/",..1,".png"))){
+      
+      plt <- data.frame(color = ..2) %>%
+        ggplot(aes(x = 1,y = 1,fill = color)) +
+        geom_raster() +
+        coord_fixed() +
+        theme_void() +
+        scale_fill_identity()
+      
+      ggsave(filename = paste0("../www/",..1,".png"),plot = plt) 
+      
+    }
+    
+  })
+```
+
+```{r,eval = FALSE}
+oldFileNames <- list.files("../www/",full.names = TRUE)
+
+newFileNames <- oldFileNames %>%
+  str_replace_all("_","-") %>%
+  str_squish() %>%
+  str_remove_all(" ") %>%
+  str_remove_all("#")
+
+file.copy(oldFileNames,newFileNames)
+
+file.remove(oldFileNames)
+```
+
+
+```{r}
+# convert RGB to CIE XYZ and then to CIE L*a*b* -- taken from
+# https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
+
+abTrans <- function(x){
+  
+  return(ifelse(x > 0.00856,
+         x^(1/3),
+         7.787*x + 16/116))
+  
+}
+
+rgb2lab_8bit <- function(r,g,b){
+  
+  xyz <- matrix(c(0.412453,0.357580,0.180423,
+                  0.212671,0.715160,0.072169,
+                    0.019334,0.119193,0.950227),
+                ncol = 3,byrow = TRUE) %*% c(r,g,b)
+  
+  xyz[1] <- xyz[1]/0.950456
+  xyz[3] <- xyz[3]/1.088754
+  
+  L <- ifelse(xyz[2] > 0.008856,
+              116*xyz[2]^(1/3),
+              903.3*xyz[2])
+  
+  a <- 500*(abTrans(xyz[1]) - abTrans(xyz[2])) + 128
+  b <- 200*(abTrans(xyz[2]) - abTrans(xyz[3])) + 128
+  
+  return(paste0(L,", ",a,", ",b))
+  
+}
+```
+

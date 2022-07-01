@@ -1,0 +1,72 @@
+---
+title: "R Notebook"
+---
+
+```{r setup}
+library(imager)
+library(tidyverse)
+library(plotly)
+```
+
+
+```{r}
+image <- imager::load.image("../images/artemis.png") %>%
+  imager::mirror(axis = "y")
+
+image <- image %>%
+  # imager::resize(size_x = ncol(image)/4,size_y = nrow(image)/4) %>%
+  as.data.frame() %>%
+  filter(cc != 4) %>%
+  arrange(x,y,cc) %>%
+  mutate(channel = factor(cc,labels = c("R","G","B"))) %>%
+  select(-cc) %>%
+  pivot_wider(names_from = channel,values_from = value) %>%
+  mutate(hex = rgb(R,G,B,maxColorValue = 1))
+```
+
+```{r}
+image %>%
+  # select(R,G,B) %>%
+  # dbscan::dbscan(eps = .01)
+  ggplot(aes(x=x,y=y,fill=hex)) +
+  geom_raster() +
+  scale_fill_identity() +
+  coord_fixed(expand = FALSE) +
+  theme_void()
+```
+
+```{r}
+imageClust <- image %>%
+  mutate(clust = image %>%
+           select(R,G,B) %>%
+           dbscan::dbscan(eps = .005)  %>%
+           .$cluster) %>%
+  group_by(clust) %>%
+  mutate(clustR = mean(R),
+         clustG = mean(G),
+         clustB = mean(B)) %>%
+  ungroup() %>%
+  mutate(clustHex = rgb(clustR,clustG,clustB,maxColorValue = 1))
+
+imageClust %>%
+  ggplot(aes(x=x,y=y,fill=clustHex)) +
+  geom_raster() +
+  scale_fill_identity() +
+  coord_fixed(expand = FALSE) +
+  theme_void()
+```
+
+```{r}
+imageClust %>%
+  group_by(clustHex) %>%
+  summarise(n = n()) %>%
+  top_n(n = 6,wt = n) %>%
+  ggplot(aes(x=1,y=3,fill=clustHex)) +
+  geom_tile(color = "black",size = .2) +
+  facet_wrap(~clustHex,nrow = 1) +
+  theme_void() +
+  theme(strip.text = element_text(vjust=2)) +
+  coord_fixed(expand = FALSE,ratio = 2) +
+  scale_fill_identity()
+```
+
