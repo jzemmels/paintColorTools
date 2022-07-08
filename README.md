@@ -1,6 +1,6 @@
 # paintColorTools
 A shiny application to discover and compare paint colors across a variety of brands.
-The app is available here: jzemmels.shinyapps.io/paintcolortools/.
+The app is available here: [jzemmels.shinyapps.io/paintcolortools/](jzemmels.shinyapps.io/paintcolortools/).
 
 After moving to a new townhouse that was in desparate need of painting, I became frustrated at how difficult it was to compare paint colors across brands.
 Many brands use propietary coding schemes to uniquely identify their paint colors.
